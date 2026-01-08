@@ -1,0 +1,36 @@
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const { imageDataUrl } = req.body || {};
+  if (!imageDataUrl || !imageDataUrl.startsWith("data:image/")) {
+    return res.status(400).json({ error: "Invalid image data" });
+  }
+
+  const BOT_TOKEN = process.env.BOT_TOKEN;
+  const CHAT_ID = process.env.CHAT_ID;
+
+  if (!BOT_TOKEN || !CHAT_ID) {
+    return res.status(500).json({ error: "Missing env vars" });
+  }
+
+  const base64 = imageDataUrl.split(",")[1];
+  const buffer = Buffer.from(base64, "base64");
+
+  const form = new FormData();
+  form.append("chat_id", CHAT_ID);
+  form.append("photo", new Blob([buffer], { type: "image/jpeg" }), "photo.jpg");
+
+  const tg = await fetch(
+    `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
+    { method: "POST", body: form }
+  );
+
+  const out = await tg.json();
+  if (!out.ok) {
+    return res.status(500).json(out);
+  }
+
+  res.status(200).json({ ok: true });
+}
