@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>التقاط صورة وإرسال لتلغرام</title>
+  <style>
+    body{font-family:tahoma;background:#111;color:#fff;margin:0;padding:18px}
+    .card{max-width:520px;margin:auto;background:#1b1b1b;padding:16px;border-radius:14px}
+    h2{margin:0 0 10px}
+    .small{font-size:13px;color:#bbb;line-height:1.7}
+    button{width:100%;padding:12px;margin:8px 0;border:0;border-radius:12px;font-size:16px}
+    .primary{background:#2f7dff;color:#fff}
+    .danger{background:#ff3b3b;color:#fff}
+    video,img{width:100%;border-radius:12px;margin-top:10px;background:#000}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>📷 التقاط صورة</h2>
+    <div class="small">
+      يتم تشغيل الكاميرا فقط بعد موافقتك، ولن تُرسل أي صورة إلا بعد الضغط على زر الإرسال.
+    </div>
+
+    <button id="startBtn" class="primary">تشغيل الكاميرا</button>
+    <button id="snapBtn" class="primary" disabled>التقاط وإرسال للتلغرام</button>
+    <button id="stopBtn" class="danger" disabled>إيقاف الكاميرا</button>
+
+    <div id="status" class="small"></div>
+
+    <video id="video" autoplay playsinline></video>
+    <img id="preview" style="display:none" />
+  </div>
+
+<script>
+  const API_BASE = "https://PUT-YOUR-SERVER-URL-HERE";
+
+  const video = document.getElementById("video");
+  const preview = document.getElementById("preview");
+  const startBtn = document.getElementById("startBtn");
+  const snapBtn = document.getElementById("snapBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const statusEl = document.getElementById("status");
+  let stream = null;
+
+  const setStatus = t => statusEl.textContent = t;
+
+  startBtn.onclick = async () => {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video:true });
+      video.srcObject = stream;
+      snapBtn.disabled = false;
+      stopBtn.disabled = false;
+      setStatus("📸 الكاميرا شغالة");
+    } catch {
+      setStatus("❌ فشل تشغيل الكاميرا");
+    }
+  };
+
+  stopBtn.onclick = () => {
+    stream?.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+    snapBtn.disabled = true;
+    stopBtn.disabled = true;
+    setStatus("تم الإيقاف");
+  };
+
+  snapBtn.onclick = async () => {
+    const c = document.createElement("canvas");
+    c.width = video.videoWidth;
+    c.height = video.videoHeight;
+    c.getContext("2d").drawImage(video,0,0);
+    const img = c.toDataURL("image/jpeg",0.9);
+
+    preview.src = img;
+    preview.style.display = "block";
+    setStatus("جارِ الإرسال...");
+
+    const r = await fetch(API_BASE+"/upload",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({imageDataUrl:img})
+    });
+
+    setStatus(r.ok ? "✅ تم الإرسال للتلغرام" : "❌ فشل الإرسال");
+  };
+</script>
+</body>
+</html>
